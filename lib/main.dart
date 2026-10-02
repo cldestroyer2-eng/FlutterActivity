@@ -192,11 +192,73 @@
 //   }
 // }
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 class Fruit {
   String name;
+
   Fruit({required this.name});
+
+  // Convert API JSON data into a Fruit object
+  factory Fruit.fromJson(Map<String, dynamic> json) {
+    return Fruit(name: json['title']);
+  }
+}
+
+// Fetch data from the API
+Future<List<Fruit>> fetchFruits() async {
+  final response = await http.get(
+    Uri.parse('https://dummyjson.com/products?limit=0'),
+  );
+
+  if (response.statusCode == 200) {
+    // Convert the API response into JSON
+    final data = jsonDecode(response.body);
+
+    // Get the products from the JSON
+    List<dynamic> products = data['products'];
+
+    // Fruit names that we want to display
+    List<String> fruitNames = [
+      'Apple',
+      'Grape',
+      'Orange',
+      'Kiwi',
+      'Pineapple',
+      'Raspberry',
+      'Banana',
+      'Mango',
+      'Strawberry',
+      'Watermelon',
+      'Lemon',
+      'Lime',
+      'Peach',
+      'Pear',
+      'Cherry',
+      'Papaya',
+      'Coconut',
+      'Avocado',
+      'Dragon Fruit',
+      'Guava',
+    ];
+
+    // Get matching fruits from the API
+    List<Fruit> fruits = products
+        .where((product) {
+          return fruitNames.contains(product['title']);
+        })
+        .map((product) {
+          return Fruit.fromJson(product);
+        })
+        .toList();
+
+    return fruits;
+  } else {
+    throw Exception('Failed to load fruits');
+  }
 }
 
 void main() {
@@ -211,38 +273,33 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  List<Fruit> fruits = [
-    Fruit(name: 'Apple'),
-    Fruit(name: 'Grape'),
-    Fruit(name: 'Orange'),
-    Fruit(name: 'Kiwi'),
-    Fruit(name: 'Pineapple'),
-    Fruit(name: 'Raspberry'),
-    Fruit(name: 'Arcay'),
-    Fruit(name: 'Banana'),
-    Fruit(name: 'Mango'),
-    Fruit(name: 'Strawberry'),
-    Fruit(name: 'Watermelon'),
-    Fruit(name: 'Papaya'),
-    Fruit(name: 'Avocado'),
-    Fruit(name: 'Coconut'),
-    Fruit(name: 'Dragon Fruit'),
-    Fruit(name: 'Peach'),
-    Fruit(name: 'Pear'),
-    Fruit(name: 'Cherry'),
-    Fruit(name: 'Lemon'),
-    Fruit(name: 'Lime'),
-    Fruit(name: 'Guava'),
-    Fruit(name: 'Melon'),
-    Fruit(name: 'Plum'),
-    Fruit(name: 'Blueberry'),
-    Fruit(name: 'Blackberry'),
-    Fruit(name: 'Passion Fruit'),
-    Fruit(name: 'Pomegranate'),
-    Fruit(name: 'Jackfruit'),
-    Fruit(name: 'Durian'),
-    Fruit(name: 'Lychee'),
-  ];
+  List<Fruit> fruits = [];
+
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Fetch the API data when the app starts
+    loadFruits();
+  }
+
+  // Get fruits from the API
+  void loadFruits() async {
+    try {
+      List<Fruit> apiFruits = await fetchFruits();
+
+      setState(() {
+        fruits = apiFruits;
+        isLoading = false;
+      });
+    } catch (error) {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
 
   void removeFruit(Fruit fruit) {
     setState(() {
@@ -254,23 +311,30 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+
       home: Scaffold(
         appBar: AppBar(title: const Text('Fruit List'), centerTitle: true),
 
-        body: ListView.builder(
-          itemCount: fruits.length,
-          itemBuilder: (context, index) {
-            final fruit = fruits[index];
+        body: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : fruits.isEmpty
+            ? const Center(child: Text('No fruits found'))
+            : ListView.builder(
+                itemCount: fruits.length,
 
-            return FruitCard(
-              fruit: fruit,
-              index: index,
-              delete: () {
-                removeFruit(fruit);
-              },
-            );
-          },
-        ),
+                itemBuilder: (context, index) {
+                  final fruit = fruits[index];
+
+                  return FruitCard(
+                    fruit: fruit,
+                    index: index,
+
+                    delete: () {
+                      removeFruit(fruit);
+                    },
+                  );
+                },
+              ),
       ),
     );
   }
@@ -298,6 +362,7 @@ class FruitCard extends StatelessWidget {
 
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
+
           children: [
             IconButton(
               icon: const Icon(
